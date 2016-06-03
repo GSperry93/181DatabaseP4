@@ -23,6 +23,39 @@ RelationManager::~RelationManager()
 {
 }
 
+RC RelationManager::createIndex(const string &tableName, const string &attributeName)
+{
+        IndexManager *im = IndexManager::instance();
+
+	return -1;
+}
+
+RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
+{
+	return -1;
+}
+
+RC RelationManager::indexScan(const string &tableName,
+                      const string &attributeName,
+                      const void *lowKey,
+                      const void *highKey,
+                      bool lowKeyInclusive,
+                      bool highKeyInclusive,
+                      RM_IndexScanIterator &rm_IndexScanIterator)
+{
+	return -1;
+}
+
+// RM_IndexScanIterator
+
+RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key){
+    return RM_EOF;
+}
+
+RC RM_IndexScanIterator::close(){
+    return 0;
+}
+
 RC RelationManager::createCatalog()
 {
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
@@ -51,6 +84,8 @@ RC RelationManager::createCatalog()
     rc = insertColumns(COLUMNS_TABLE_ID, columnDescriptor);
     if (rc)
         return rc;
+    
+    // Create the Index table
 
     return SUCCESS;
 }
@@ -809,6 +844,8 @@ void RelationManager::fromAPI(float &real, void *data)
     
     real = tmp;
 }
+
+
 
 // RM_ScanIterator ///////////////
 
