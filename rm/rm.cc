@@ -15,7 +15,7 @@ RelationManager* RelationManager::instance()
 }
 
 RelationManager::RelationManager()
-: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor())
+: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor()), indexDescriptor(createIndexDescriptor())
 {
 }
 
@@ -67,12 +67,19 @@ RC RelationManager::createCatalog()
     rc = rbfm->createFile(getFileName(COLUMNS_TABLE_NAME));
     if (rc)
         return rc;
-
+    // Create the index table
+    rc = rbfm->createFile(getFileName(INDEXES_TABLE_NAME));
+    if (rc)
+        return rc;
+   
     // Add table entries for both Tables and Columns
     rc = insertTable(TABLES_TABLE_ID, 1, TABLES_TABLE_NAME);
     if (rc)
         return rc;
     rc = insertTable(COLUMNS_TABLE_ID, 1, COLUMNS_TABLE_NAME);
+    if (rc)
+        return rc;
+    rc = insertTable(INDEXES_TABLE_ID, 1, INDEXES_TABLE_NAME);
     if (rc)
         return rc;
 
@@ -84,8 +91,10 @@ RC RelationManager::createCatalog()
     rc = insertColumns(COLUMNS_TABLE_ID, columnDescriptor);
     if (rc)
         return rc;
+    rc = insertColumns(INDEXES_TABLE_ID, indexDescriptor);
+    if (rc)
+        return rc;
     
-    // Create the Index table
 
     return SUCCESS;
 }
@@ -494,6 +503,28 @@ vector<Attribute> RelationManager::createTableDescriptor()
     td.push_back(attr);
 
     return td;
+}
+
+vector<Attribute> RelationManager::createIndexDescriptor(){
+        vector<Attribute> td;
+        
+        Attribute attr;
+        attr.name = INDEXES_COL_TABLE_ID;
+        attr.type = TypeInt;
+        attr.length = (AttrLength)INT_SIZE;
+        td.push_back(attr);
+
+        attr.name = INDEXES_COL_ATTRIBUTE;
+        attr.type = TypeVarChar;
+        attr.length = (AttrLength)INDEXES_COL_ATTRIBUTE_NAME_SIZE;
+        td.push_back(attr);
+
+        attr.name = INDEXES_COL_FILE;
+        attr.type = TypeVarChar;
+        attr.length = (AttrLength)INDEXES_COL_ATTRIBUTE_NAME_SIZE;
+        rd.push_back(attr);
+
+        return td;
 }
 
 vector<Attribute> RelationManager::createColumnDescriptor()
