@@ -453,7 +453,7 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
         unsigned length;
         Attribute attr;
         // We need the Attribute struct, cycle through our attributes and find it
-        for(auto const& a: recordDesciptor) {
+        for(auto const& a: recordDescriptor) {
                 if(name.compare(a.name) == 0){
                         attr = a;
                         length = a.length;
@@ -470,22 +470,20 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
         rc = readAttribute(tableName, rid, strAttribute, keyAttribute);
         if(rc)
           return rc;
-        string key;
-        fromAPI(key, keyAttribute);
         // Great, we have a key, lets delete from the index
         IXFileHandle fh;
-        rc = ix->openFile(table, fh);
+        rc = im->openFile(table, fh);
         if(rc)
           return rc;
-        rc = ix->deleteEntry(fh, attr, key, rid);
+        rc = im->deleteEntry(fh, attr, keyAttribute, rid);
         if(rc)
           return rc;
         free(attribute);
-        free(indexFileName);
+        free(indexFilename);
         free(keyAttribute);
-        rc = ix->closeFile(fh);
+        rc = im->closeFile(fh);
         if(rc)
-          return rc
+          return rc;
     }
     // Now get the filehandle for the rbfm file
     FileHandle fileHandle;
@@ -644,7 +642,7 @@ vector<Attribute> RelationManager::createIndexDescriptor(){
         attr.name = INDEXES_COL_FILE;
         attr.type = TypeVarChar;
         attr.length = (AttrLength)INDEXES_COL_ATTRIBUTE_NAME_SIZE;
-        rd.push_back(attr);
+        td.push_back(attr);
 
         return td;
 }
@@ -731,12 +729,12 @@ void RelationManager::prepareIndexesRecordData(int32_t table_id, const string &k
     // Key
     memcpy((char *) data + offset, &key_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char *) data + offset, &key.c_str(), key_len);
+    memcpy((char *) data + offset, key.c_str(), key_len);
     offset += key_len;
     // filename
     memcpy((char *) data + offset, &filename_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char *) data + offset, &filename.c_str(), filename_len);
+    memcpy((char *) data + offset, filename.c_str(), filename_len);
     offset += filename_len;
 }
 
@@ -831,7 +829,7 @@ RC RelationManager::insertIndex(int32_t table_id, const string &key, const strin
         return rc;
 
     void *indexData = malloc(INDEXES_RECORD_DATA_SIZE);
-    prepareIndexesRecordData(table_id, const string &key, const string &filename, indexdata);
+    prepareIndexesRecordData(table_id, key, filename, indexData);
     rc = rbfm->insertRecord(fileHandle, indexDescriptor, indexData, rid);
 
     rbfm->closeFile(fileHandle);
