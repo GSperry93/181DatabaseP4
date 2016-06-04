@@ -29,12 +29,12 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         rc = getTableID(tableName, id);
         if (rc)
                 return rc;
-	return -1;
+        return -1;
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
-	return -1;
+        return -1;
 }
 
 RC RelationManager::indexScan(const string &tableName,
@@ -45,17 +45,15 @@ RC RelationManager::indexScan(const string &tableName,
                       bool highKeyInclusive,
                       RM_IndexScanIterator &rm_IndexScanIterator)
 {
-	return -1;
-}
-
-// RM_IndexScanIterator
-
-RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key){
-    return RM_EOF;
-}
-
-RC RM_IndexScanIterator::close(){
-    return 0;
+        vector<Attribute> recordDescriptor;
+        Atribute attribute;
+        rc = getAttributes(tableName, recordDescriptor);
+        for(int i = 0; i < recordDescriptor.size(); i++){
+                if(recordDescriptor[i].name == attributeName){
+                        attribute = recordDescriptor[i];
+                }
+        }
+        rm_IndexScanIterator.initialize(tableName, &attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
 RC RelationManager::createCatalog()
