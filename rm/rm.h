@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <stdlib.h>
 
 #include "../rbf/rbfm.h"
 #include "../ix/ix.h"
