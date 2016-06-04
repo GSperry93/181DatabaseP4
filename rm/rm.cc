@@ -372,6 +372,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
+        IndexManager * im = IndexManager::instance();
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC rc;
 
@@ -394,10 +395,74 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
     if (rc)
         return rc;
-
+    
     // Let rbfm do all the work
     rc = rbfm->insertRecord(fileHandle, recordDescriptor, data, rid);
     rbfm->closeFile(fileHandle);
+
+    //at this point we have the key in the table so we can copy the code from 
+    //deleteTuple almost exacly
+    RM_ScanIterator rm_si;
+    vector<string> projection;
+    int32_t id;
+    rc = getTableID(tableName, id);
+    if(rc)
+      return rc;
+    void *value = &id;
+    rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+    if(rc)
+      return rc;
+    RID arid;
+    void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+    const string aName = INDEXES_COL_ATTRIBUTE;
+    const string fileName = INDEXES_COL_FILE;
+    while(rm_si.getNextTuple(arid, data) != -1){
+        void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+        void *indexFilename = malloc(INDEXES_COL_FILE_NAME_SIZE);
+        // Read in the attribute from the tuple
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, attribute);
+        if(rc)
+            return rc;
+        // Read in the index file name
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+        if(rc)
+          return rc;
+        string name;
+        fromAPI(name, attribute);
+        unsigned length;
+        Attribute attr;
+        // We need the Attribute struct, cycle through our attributes and find it
+        for(auto const& a: recordDescriptor) {
+                if(name.compare(a.name) == 0){
+                        attr = a;
+                        length = a.length;
+                        break;
+                }
+        }
+        //table = an index table name
+        string table;
+        fromAPI(table, indexFilename);
+        string strAttribute;
+        fromAPI(strAttribute, attribute);
+        // Read in the key from the table - NOT  the index but he actual table
+        rc = readAttribute(tableName, rid, strAttribute, keyAttribute);
+        if(rc)
+          return rc;
+        // Great, we have a key, lets delete from the index
+        IXFileHandle fh;
+        rc = im->openFile(table, fh);
+        if(rc)
+          return rc;
+        rc = im->insertEntry(fh, attr, keyAttribute, rid);
+        if(rc)
+          return rc;
+        free(attribute);
+        free(indexFilename);
+        free(keyAttribute);
+        rc = im->closeFile(fh);
+        if(rc)
+          return rc;
+    }
 
     return rc;
 }
