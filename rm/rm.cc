@@ -26,15 +26,25 @@ RelationManager::~RelationManager()
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
         IndexManager *im = IndexManager::instance();
+        int32_t id;
+        RC rc;
         rc = getTableID(tableName, id);
         if (rc)
                 return rc;
-	return -1;
+
+        const string filename = getIndexFileName(attributeName, tableName);
+        if(rc = im->createFile(filename))
+                return rc;
+        rc = insertIndex(id, attributeName, filename);
+        if (rc)
+                return rc;
+	return 0;
+
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
-	return -1;
+        return -1;
 }
 
 RC RelationManager::indexScan(const string &tableName,
@@ -45,17 +55,15 @@ RC RelationManager::indexScan(const string &tableName,
                       bool highKeyInclusive,
                       RM_IndexScanIterator &rm_IndexScanIterator)
 {
-	return -1;
-}
-
-// RM_IndexScanIterator
-
-RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key){
-    return RM_EOF;
-}
-
-RC RM_IndexScanIterator::close(){
-    return 0;
+        vector<Attribute> recordDescriptor;
+        Atribute attribute;
+        rc = getAttributes(tableName, recordDescriptor);
+        for(int i = 0; i < recordDescriptor.size(); i++){
+                if(recordDescriptor[i].name == attributeName){
+                        attribute = recordDescriptor[i];
+                }
+        }
+        rm_IndexScanIterator.initialize(tableName, &attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
 RC RelationManager::createCatalog()
@@ -477,6 +485,10 @@ string RelationManager::getFileName(const char *tableName)
 string RelationManager::getFileName(const string &tableName)
 {
     return tableName + string(TABLE_FILE_EXTENSION);
+}
+
+string RelationManager::getIndexFileName(const string &attributeName, const string &tableName){
+        return tableName + attributeName + string(INDEX_FILE_EXTENSION);
 }
 
 vector<Attribute> RelationManager::createTableDescriptor()

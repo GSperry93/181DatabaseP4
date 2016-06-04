@@ -6,10 +6,12 @@
 #include <vector>
 
 #include "../rbf/rbfm.h"
+#include "../ix/ix.h"
 
 using namespace std;
 
 #define TABLE_FILE_EXTENSION ".t"
+#define INDEX_FILE_EXTENSION ".i"
 
 #define TABLES_TABLE_NAME           "Tables"
 #define TABLES_TABLE_ID             1
@@ -84,14 +86,7 @@ private:
 };
 
 // RM_IndexScanIterator is an iterator to go through index entries
-class RM_IndexScanIterator {
- public:
-  RM_IndexScanIterator() {};  	// Constructor
-  ~RM_IndexScanIterator() {}; 	// Destructor
-
-  // "key" follows the same format as in IndexManager::insertEntry()
-  RC getNextEntry(RID &rid, void *key) {return RM_EOF;};  	// Get next matching entry
-  RC close() {return -1;};             			// Terminate index scan
+class RM_IndexScanIterator : public IX_ScanIterator{
 };
 
 
@@ -161,6 +156,9 @@ private:
   // Convert tableName to file name (append extension)
   static string getFileName(const char *tableName);
   static string getFileName(const string &tableName);
+
+  // Get index file name from attribute and table
+  static string getIndexFileName(const string &attributeName, const string &tableName);
 
   // Create recordDescriptor for Table/Column tables
   static vector<Attribute> createTableDescriptor();
