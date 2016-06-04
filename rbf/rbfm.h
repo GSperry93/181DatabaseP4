@@ -6,7 +6,6 @@
 #include <climits>
 
 #include "../rbf/pfm.h"
-#include "../qe/qe.h"
 
 #define INT_SIZE                4
 #define REAL_SIZE               4

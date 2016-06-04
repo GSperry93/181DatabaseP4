@@ -6,7 +6,6 @@
 
 #include "../rbf/rbfm.h"
 #include "../rbf/pfm.h"
-#include "../rm/rm.h"
 
 #define IX_TYPE_LEAF     0
 #define IX_TYPE_INTERNAL 1
