@@ -44,7 +44,46 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
-	return -1;
+        IndexManager *im = IndexManager::instance();
+        RC rc;
+        
+        // delete the index file
+        const string filename = getIndexFileName(attributeName, tableName);
+        rc = im->destroyFile(fileName);
+        if(rc)
+          return rc;
+
+        int32_t id;
+        rc = getTableID(tableName, id);
+        if(rc)
+          return rc;
+
+        rm_ScanIterator rm_si;
+        vector<string> projection;
+        void *value = &id;
+        rc = rm->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        RID rid;
+        void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+        const string attributeName = INDEXES_COL_ATTRIBUTE;
+        while(rm_si.getNextEntry(rid, data) != -1){
+                void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+                rc = readAttribute(INDEXES_TABLE_NAME, rid, attributeName, attribute);
+                if(rc)
+                  return rc;
+                string a;
+                fromAPI(a, attribute);
+                if(attributeName.compare(a) == 0){
+                        rc = deleteTuple(INDEXES_TABLE_ID, rid);
+                        if(rc)
+                          return rc;
+                        free(attribute);
+                        free(data);
+                        return SUCCESS;
+                }
+                free(attribute);
+        }
+        free(data);
+        return SUCCESS;
 }
 
 RC RelationManager::indexScan(const string &tableName,
