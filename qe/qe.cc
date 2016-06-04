@@ -12,7 +12,8 @@ Filter::Filter(Iterator* input, const Condition &condition)
 /* should set output parameter data for the next record.
  * the format of the data parameter, which refers to the next tuple
  * of the operator's output, is the same as that used in previous
- * projects*/
+ * projects
+ */
 
 
 //virtual void getAttributes(vector<Attribute> &attrs) const = 0;
@@ -22,7 +23,8 @@ Filter::Filter(Iterator* input, const Condition &condition)
  * the associated schema information for the returned tuple stream
  * available in the query plan. The names of the attributes in the 
  * vector<Attribute> should be of the form relation.attribute to
- * clearly specify the relation from which each attribute comes.*/
+ * clearly specify the relation from which each attribute comes.i
+ */
 
 // ... the rest of your implementations go here
 RC Filter::getNextTuple(void *data) 
@@ -46,14 +48,34 @@ RC Filter::getNextTuple(void *data)
 //    NE_OP,      // !=
 //    NO_OP       // no condition
 //} CompOp;
-
+	void* tempData = malloc(4096);
+	bool condTrue;
+	
 
 	do
 	{
-	
-	}
-	while(!checkCond(val);
+		if(iter->getNextTuple(tempData) == QE_EOF)
+		{
+			return QE_EOF;
+		}	
+		//read lhs value out of tuple
 
+		vector<Attribute> attr;
+		getAttributes(attr);
+		for(int i = 0; i < attr.size(); i++
+		{
+			
+		}
+		//read rhs attr value if applicable
+
+	}
+	while(!condTrue && iter != NULL);
+	if(condTrue)
+	{
+		data = tempData;
+		return 0;
+	}
+	
 	return QE_EOF;
 }
 
@@ -233,6 +255,9 @@ bool Filter::checkCond(const float realCond)
 	return false;
 
 }
+
+//will definitely segfault if the rhsAttr is not null terminated, which includes if it's improperly assumed to be a string when
+//it is actually an int or a real
 bool Filter::checkCond(const char* charCond)
 {
 	int strcmpRes;
