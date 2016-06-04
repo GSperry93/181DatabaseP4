@@ -6,6 +6,7 @@
 
 #include "../rbf/rbfm.h"
 #include "../rbf/pfm.h"
+#include "../rm/rm.h"
 
 #define IX_TYPE_LEAF     0
 #define IX_TYPE_INTERNAL 1
@@ -249,6 +250,8 @@ class IX_ScanIterator {
         RC close();
 
         friend class IndexManager;
+        friend class RM_IndexScanIterator;
+        friend class RelationManager;
     private:
         IXFileHandle *fileHandle;
         Attribute attr;

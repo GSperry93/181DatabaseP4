@@ -94,15 +94,51 @@ RC RelationManager::indexScan(const string &tableName,
                       bool highKeyInclusive,
                       RM_IndexScanIterator &rm_IndexScanIterator)
 {
+        IndexManager *im = IndexManager::instance();
+        //get the full attribute associated with the attributeName
         vector<Attribute> recordDescriptor;
         Attribute attribute;
-        rc = getAttributes(tableName, recordDescriptor);
+        int rc = getAttributes(tableName, recordDescriptor);
         for(int i = 0; i < recordDescriptor.size(); i++){
                 if(recordDescriptor[i].name == attributeName){
                         attribute = recordDescriptor[i];
                 }
         }
-        rm_IndexScanIterator.initialize(tableName, &attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+        //the index file handle we will ultimately open
+        IXFileHandle ixfh;
+
+        RM_ScanIterator rm_si;
+        vector<string> projection;
+        int32_t id;
+        rc = getTableID(tableName, id);
+        if(rc)
+          return rc;
+        void *value = &id;
+        rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        if(rc)
+          return rc;
+        RID arid;
+        void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+        const string aName = INDEXES_COL_ATTRIBUTE;
+        const string fileName = INDEXES_COL_FILE;
+
+        while(rm_si.getNextTuple(arid, data) != -1){
+            void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+            void *indexFilename = malloc(INDEXES_COL_FILE_NAME_SIZE);
+            // Read in the attribute from the tuple
+            rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, attribute);
+            if(rc)
+                return rc;
+            // Read in the index file name
+            rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+            if(rc)
+              return rc;
+            //table = an index table name
+            string table;
+            fromAPI(table, indexFilename);
+            im->openFile(table, ixfh);
+        }
+        return rm_IndexScanIterator.initialize(ixfh, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
 RC RelationManager::createCatalog()
