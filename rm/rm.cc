@@ -26,10 +26,20 @@ RelationManager::~RelationManager()
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
         IndexManager *im = IndexManager::instance();
+        int32_t id;
+        RC rc;
         rc = getTableID(tableName, id);
         if (rc)
                 return rc;
-	return -1;
+
+        const string filename = getIndexFileName(attributeName, tableName);
+        if(rc = im->createFile(filename))
+                return rc;
+        rc = insertIndex(id, attributeName, filename);
+        if (rc)
+                return rc;
+	return 0;
+
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
@@ -477,6 +487,10 @@ string RelationManager::getFileName(const char *tableName)
 string RelationManager::getFileName(const string &tableName)
 {
     return tableName + string(TABLE_FILE_EXTENSION);
+}
+
+string RelationManager::getIndexFileName(const string &attributeName, const string &tableName){
+        return tableName + attributeName + string(INDEX_FILE_EXTENSION);
 }
 
 vector<Attribute> RelationManager::createTableDescriptor()
