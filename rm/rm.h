@@ -172,11 +172,13 @@ private:
   // Prepare an entry for the Table/Column table
   void prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data);
   void prepareColumnsRecordData(int32_t id, int32_t pos, Attribute attr, void *data);
+  void prepareIndexesRecordData(int32_t table_id, const string &key, const string &filename, void *data);
 
   // Given a table ID and recordDescriptor, creates entries in Column table
   RC insertColumns(int32_t id, const vector<Attribute> &recordDescriptor);
   // Given table ID, system flag, and table name, creates entry in Table table
   RC insertTable(int32_t id, int32_t system, const string &tableName);
+  RC insertIndex(int32_t table_id, const string &key, const string &filename);
 
   // Get next table ID for creating table
   RC getNextTableID(int32_t &table_id);

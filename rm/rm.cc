@@ -26,7 +26,9 @@ RelationManager::~RelationManager()
 RC RelationManager::createIndex(const string &tableName, const string &attributeName)
 {
         IndexManager *im = IndexManager::instance();
-
+        rc = getTableID(tableName, id);
+        if (rc)
+                return rc;
 	return -1;
 }
 
@@ -596,6 +598,28 @@ void RelationManager::prepareTablesRecordData(int32_t id, bool system, const str
     offset += INT_SIZE; // not necessary because we return here, but what if we didn't?
 }
 
+void RelationManager::prepareIndexesRecordData(int32_t table_id, const string &key, const string &filename, void *data){
+    unsigned offset = 0;
+    int32_t key_len = key.length();
+    int32_t filename_len = filename.length();
+
+    char null = 0;
+    memcpy((char *) data + offset, &null, 1);
+    offset += 1;
+    memcpy((char *) data + offset, &table_id, INT_SIZE);
+    offset += INT_SIZE;
+    // Key
+    memcpy((char *) data + offset, &key_len, VARCHAR_LENGTH_SIZE);
+    offset += VARCHAR_LENGTH_SIZE;
+    memcpy((char *) data + offset, &key.c_str(), key_len);
+    offset += key_len;
+    // filename
+    memcpy((char *) data + offset, &filename_len, VARCHAR_LENGTH_SIZE);
+    offset += VARCHAR_LENGTH_SIZE;
+    memcpy((char *) data + offset, &filename.c_str(), filename_len);
+    offset += filename_len;
+}
+
 // Prepares the Columns table entry for the given id and attribute list
 void RelationManager::prepareColumnsRecordData(int32_t id, int32_t pos, Attribute attr, void *data)
 {
@@ -673,6 +697,25 @@ RC RelationManager::insertTable(int32_t id, int32_t system, const string &tableN
 
     rbfm->closeFile(fileHandle);
     free (tableData);
+    return rc;
+}
+
+RC RelationManager::insertIndex(int32_t table_id, const string &key, const string &filename){
+    FileHandle fileHandle;
+    RID rid;
+    RC rc;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+
+    rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fileHandle);
+    if (rc)
+        return rc;
+
+    void *indexData = malloc(INDEXES_RECORD_DATA_SIZE);
+    prepareIndexesRecordData(table_id, const string &key, const string &filename, indexdata);
+    rc = rbfm->insertRecord(fileHandle, indexDescriptor, indexData, rid);
+
+    rbfm->closeFile(fileHandle);
+    free(indexData);
     return rc;
 }
 
