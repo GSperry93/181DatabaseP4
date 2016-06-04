@@ -6,6 +6,7 @@
 #include <climits>
 
 #include "../rbf/pfm.h"
+#include "../qe/qe.h"
 
 #define INT_SIZE                4
 #define REAL_SIZE               4
@@ -216,6 +217,7 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
 
 public:
   friend class RBFM_ScanIterator;
+  friend class Project;
 
 protected:
   RecordBasedFileManager();

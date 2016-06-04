@@ -212,15 +212,151 @@ class Filter : public Iterator {
 class Project : public Iterator {
     // Projection operator
     public:
+        Iterator *input;
+        vector<string> attrNames;
         Project(Iterator *input,                    // Iterator of input R
-              const vector<string> &attrNames){};   // vector containing attribute names
+              const vector<string> &attrNames)
+        {
+            this->input = input;
+            this->attrNames = attrNames;
+
+
+        };   // vector containing attribute names
         ~Project(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
-        // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
-};
+        RC getNextTuple(void *data) 
+        {
+            if (attrNames.size() == 0)
+            {
+                return SUCCESS;
+            }
+            RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+            void * int_data = malloc(PAGE_SIZE);
+            vector<Attribute> recordDescriptor;
+            input->getAttributes(recordDescriptor);
+            input->getNextTuple(int_data);
+            //taken from rbfm
 
+            // Prepare null indicator
+            unsigned nullIndicatorSize = rbfm->getNullIndicatorSize(attrNames.size());
+            char nullIndicator[nullIndicatorSize];
+            memset(nullIndicator, 0, nullIndicatorSize);
+
+            // Keep track of offset into data
+            unsigned dataOffset = nullIndicatorSize;
+
+            for (unsigned i = 0; i < attrNames.size(); i++)
+            {
+                // Get index and type of attribute in record
+                auto pred = [&](Attribute a) {return a.name == attrNames[i];};
+                auto iterPos = find_if(recordDescriptor.begin(), recordDescriptor.end(), pred);
+                unsigned index = distance(recordDescriptor.begin(), iterPos);
+                if (index == recordDescriptor.size())
+                    return RBFM_NO_SUCH_ATTR;
+                AttrType type = recordDescriptor[index].type;
+
+                // Read attribute from int_data into buffer
+                int bufOffset = nullIndicatorSize;
+                for(int k = 0 ; k < index; k++){
+                    AttrType temp_type = recordDescriptor[k].type;
+                    bufOffset += getOffset(temp_type, int_data, bufOffset);
+                }
+                int size = getSize(type, int_data, bufOffset);
+                void * buffer = malloc(PAGE_SIZE);
+                memcpy(buffer, int_data, size);
+
+                // Determine if null
+                char null;
+                memcpy (&null, buffer, 1);
+                if (null)
+                {
+                    int indicatorIndex = i / CHAR_BIT;
+                    char indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+                    nullIndicator[indicatorIndex] |= indicatorMask;
+                }
+                // Read from buffer into data
+                else if (type == TypeInt)
+                {
+                    memcpy ((char*)data + dataOffset, (char*)buffer + 1, INT_SIZE);
+                    dataOffset += INT_SIZE;
+                }
+                else if (type == TypeReal)
+                {
+                    memcpy ((char*)data + dataOffset, (char*)buffer + 1, REAL_SIZE);
+                    dataOffset += REAL_SIZE;
+                }
+                else if (type == TypeVarChar)
+                {
+                    uint32_t varcharSize;
+                    memcpy(&varcharSize, (char*)buffer + 1, VARCHAR_LENGTH_SIZE);
+                    memcpy((char*)data + dataOffset, &varcharSize, VARCHAR_LENGTH_SIZE);
+                    dataOffset += VARCHAR_LENGTH_SIZE;
+                    memcpy((char*)data + dataOffset, (char*)buffer + 1 + VARCHAR_LENGTH_SIZE, varcharSize);
+                    dataOffset += varcharSize;
+                }
+            }
+            // Finally set null indicator of data, clean up and return
+            memcpy((char*)data, nullIndicator, nullIndicatorSize);
+        };
+        // For attribute in vector<Attribute>, name it as rel.attr
+        void getAttributes(vector<Attribute> &attrs) const
+        {
+            vector<Attribute> recordDescriptor;
+            input->getAttributes(recordDescriptor);
+            vector<Attribute> to_return;
+            to_return.reserve(attrNames.size());
+            int j = 0;
+            for(int i = 0 ; i < recordDescriptor.size(); i++){
+                if(!recordDescriptor[i].name.compare(attrNames[j])){
+                    //match, we want to project this attr
+                    to_return[j] = recordDescriptor[i];
+                    j++;
+                }
+            }
+
+            attrs.clear();
+            //replace with our projected attributes
+            attrs = to_return;
+        };
+        int getOffset(AttrType type, void * data, int offset){
+            int dataOffset =0;
+            if (type == TypeInt)
+                {
+                    dataOffset += INT_SIZE;
+                }
+            else if (type == TypeReal)
+                {
+                    dataOffset += REAL_SIZE;
+                }
+            else if (type == TypeVarChar)
+                {
+                    uint32_t varcharSize;
+                    memcpy(&varcharSize, (char*)data+offset, VARCHAR_LENGTH_SIZE);
+                    dataOffset += varcharSize;
+                    dataOffset += VARCHAR_LENGTH_SIZE;
+                }
+            return dataOffset;
+        }
+        int getSize(AttrType type, void * data, int offset){
+            if (type == TypeInt)
+                {
+                    return INT_SIZE;
+                }
+            else if (type == TypeReal)
+                {
+                    return REAL_SIZE;
+                }
+            else if (type == TypeVarChar)
+                {
+                    uint32_t varcharSize;
+                    int offSet = 0;
+                    memcpy(&varcharSize, (char*)data+offset, VARCHAR_LENGTH_SIZE);
+                    offSet += varcharSize;
+                    offSet += VARCHAR_LENGTH_SIZE;
+                    return offSet;
+                }
+        }
+};
 
 class INLJoin : public Iterator {
     // Index nested-loop join operator
