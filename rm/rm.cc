@@ -33,7 +33,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
                 return rc;
 
         const string filename = getIndexFileName(attributeName, tableName);
-        if(rc = im->createFile(filename))
+        if((rc = im->createFile(filename)))
                 return rc;
         rc = insertIndex(id, attributeName, filename);
         if (rc)
@@ -44,7 +44,46 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName)
 {
-        return -1;
+        IndexManager *im = IndexManager::instance();
+        RC rc;
+        
+        // delete the index file
+        const string filename = getIndexFileName(attributeName, tableName);
+        rc = im->destroyFile(filename);
+        if(rc)
+          return rc;
+
+        int32_t id;
+        rc = getTableID(tableName, id);
+        if(rc)
+          return rc;
+
+        RM_ScanIterator rm_si;
+        vector<string> projection;
+        void *value = &id;
+        rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        RID rid;
+        void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+        const string aName = INDEXES_COL_ATTRIBUTE;
+        while(rm_si.getNextTuple(rid, data) != -1){
+                void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+                rc = readAttribute(INDEXES_TABLE_NAME, rid, aName, attribute);
+                if(rc)
+                  return rc;
+                string a;
+                fromAPI(a, attribute);
+                if(attributeName.compare(a) == 0){
+                        rc = deleteTuple(INDEXES_TABLE_NAME, rid);
+                        if(rc)
+                          return rc;
+                        free(attribute);
+                        free(data);
+                        return SUCCESS;
+                }
+                free(attribute);
+        }
+        free(data);
+        return SUCCESS;
 }
 
 RC RelationManager::indexScan(const string &tableName,
@@ -55,15 +94,51 @@ RC RelationManager::indexScan(const string &tableName,
                       bool highKeyInclusive,
                       RM_IndexScanIterator &rm_IndexScanIterator)
 {
+        IndexManager *im = IndexManager::instance();
+        //get the full attribute associated with the attributeName
         vector<Attribute> recordDescriptor;
-        Atribute attribute;
-        rc = getAttributes(tableName, recordDescriptor);
+        Attribute attribute;
+        int rc = getAttributes(tableName, recordDescriptor);
         for(int i = 0; i < recordDescriptor.size(); i++){
                 if(recordDescriptor[i].name == attributeName){
                         attribute = recordDescriptor[i];
                 }
         }
-        rm_IndexScanIterator.initialize(tableName, &attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
+        //the index file handle we will ultimately open
+        IXFileHandle ixfh;
+
+        RM_ScanIterator rm_si;
+        vector<string> projection;
+        int32_t id;
+        rc = getTableID(tableName, id);
+        if(rc)
+          return rc;
+        void *value = &id;
+        rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        if(rc)
+          return rc;
+        RID arid;
+        void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+        const string aName = INDEXES_COL_ATTRIBUTE;
+        const string fileName = INDEXES_COL_FILE;
+
+        while(rm_si.getNextTuple(arid, data) != -1){
+            void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+            void *indexFilename = malloc(INDEXES_COL_FILE_NAME_SIZE);
+            // Read in the attribute from the tuple
+            rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, attribute);
+            if(rc)
+                return rc;
+            // Read in the index file name
+            rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+            if(rc)
+              return rc;
+            //table = an index table name
+            string table;
+            fromAPI(table, indexFilename);
+            im->openFile(table, ixfh);
+        }
+        return rm_IndexScanIterator.initialize(ixfh, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
 RC RelationManager::createCatalog()
@@ -355,13 +430,93 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
     if (rc)
         return rc;
-
+    
     // Let rbfm do all the work
     rc = rbfm->insertRecord(fileHandle, recordDescriptor, data, rid);
     rbfm->closeFile(fileHandle);
 
+    //at this point we have the key in the table so we can copy the code from 
+    //deleteTuple almost exacly
+    rc = updateIndex(tableName, rid, recordDescriptor, true);
     return rc;
 }
+RC RelationManager::updateIndex(const string &tableName, const RID &rid, const vector<Attribute> &recordDescriptor, bool insert){
+    IndexManager *im = IndexManager::instance();
+    RC rc;
+    RM_ScanIterator rm_si;
+    vector<string> projection;
+    int32_t id;
+    rc = getTableID(tableName, id);
+    if(rc)
+      return rc;
+    void *value = &id;
+    rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+    if(rc)
+      return rc;
+    RID arid;
+    void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+    const string aName = INDEXES_COL_ATTRIBUTE;
+    const string fileName = INDEXES_COL_FILE;
+    while(rm_si.getNextTuple(arid, data) != -1){
+        void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+        void *indexFilename = malloc(INDEXES_COL_FILE_NAME_SIZE);
+        // Read in the attribute from the tuple
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, attribute);
+        if(rc)
+            return rc;
+        // Read in the index file name
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+        if(rc)
+          return rc;
+        string name;
+        fromAPI(name, attribute);
+        unsigned length;
+        Attribute attr;
+        // We need the Attribute struct, cycle through our attributes and find it
+        for(auto const& a: recordDescriptor) {
+                if(name.compare(a.name) == 0){
+                        attr = a;
+                        length = a.length;
+                        break;
+                }
+        }
+        // Malloc the length of the attribute
+        void *keyAttribute = malloc(length);
+        string table;
+        fromAPI(table, indexFilename);
+        string strAttribute;
+        fromAPI(strAttribute, attribute);
+        // Read in the key from the table
+        rc = readAttribute(tableName, rid, strAttribute, keyAttribute);
+        if(rc)
+          return rc;
+        // Great, we have a key, lets delete from the index
+        IXFileHandle fh;
+        rc = im->openFile(table, fh);
+        if(rc)
+          return rc;
+        if(rc)
+          return rc;
+        if(insert){
+            rc = im->insertEntry(fh, attr, keyAttribute, rid);
+            if(rc)
+              return rc;
+        } else{
+            rc = im->deleteEntry(fh, attr, keyAttribute, rid);
+            if(rc)
+              return rc;
+        }
+        
+        free(attribute);
+        free(indexFilename);
+        free(keyAttribute);
+        rc = im->closeFile(fh);
+        if(rc)
+          return rc;
+    }
+    return SUCCESS;
+}
+
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
@@ -382,7 +537,11 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
     if (rc)
         return rc;
 
-    // And get fileHandle
+    // delete the indexes if there is one
+    rc = updateIndex(tableName, rid, recordDescriptor, false);
+
+    // Now we need to see which indexes we have, and delete those indexes
+        // Now get the filehandle for the rbfm file
     FileHandle fileHandle;
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
     if (rc)
@@ -391,8 +550,11 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
     // Let rbfm do all the work
     rc = rbfm->deleteRecord(fileHandle, recordDescriptor, rid);
     rbfm->closeFile(fileHandle);
+    if(rc)
+      return rc;
 
-    return rc;
+    
+    return SUCCESS;
 }
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
@@ -414,6 +576,9 @@ RC RelationManager::updateTuple(const string &tableName, const void *data, const
     if (rc)
         return rc;
 
+    // Delete the index
+    updateIndex(tableName, rid, recordDescriptor, false);
+
     // And get fileHandle
     FileHandle fileHandle;
     rc = rbfm->openFile(getFileName(tableName), fileHandle);
@@ -424,6 +589,8 @@ RC RelationManager::updateTuple(const string &tableName, const void *data, const
     rc = rbfm->updateRecord(fileHandle, recordDescriptor, data, rid);
     rbfm->closeFile(fileHandle);
 
+    // Re add the index
+    updateIndex(tableName, rid, recordDescriptor, true);
     return rc;
 }
 
@@ -536,7 +703,7 @@ vector<Attribute> RelationManager::createIndexDescriptor(){
         attr.name = INDEXES_COL_FILE;
         attr.type = TypeVarChar;
         attr.length = (AttrLength)INDEXES_COL_ATTRIBUTE_NAME_SIZE;
-        rd.push_back(attr);
+        td.push_back(attr);
 
         return td;
 }
@@ -623,12 +790,12 @@ void RelationManager::prepareIndexesRecordData(int32_t table_id, const string &k
     // Key
     memcpy((char *) data + offset, &key_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char *) data + offset, &key.c_str(), key_len);
+    memcpy((char *) data + offset, key.c_str(), key_len);
     offset += key_len;
     // filename
     memcpy((char *) data + offset, &filename_len, VARCHAR_LENGTH_SIZE);
     offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char *) data + offset, &filename.c_str(), filename_len);
+    memcpy((char *) data + offset, filename.c_str(), filename_len);
     offset += filename_len;
 }
 
@@ -723,7 +890,7 @@ RC RelationManager::insertIndex(int32_t table_id, const string &key, const strin
         return rc;
 
     void *indexData = malloc(INDEXES_RECORD_DATA_SIZE);
-    prepareIndexesRecordData(table_id, const string &key, const string &filename, indexdata);
+    prepareIndexesRecordData(table_id, key, filename, indexData);
     rc = rbfm->insertRecord(fileHandle, indexDescriptor, indexData, rid);
 
     rbfm->closeFile(fileHandle);
@@ -935,7 +1102,7 @@ void RelationManager::fromAPI(float &real, void *data)
 
 // RM_ScanIterator ///////////////
 
-// Makes use of underlying rbfm_scaniterator
+// Makes use of underlying rbfm_scaniterator OR the ix_scaniterator
 RC RelationManager::scan(const string &tableName,
       const string &conditionAttribute,
       const CompOp compOp,                  
@@ -943,9 +1110,95 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    // Open the file for the given tableName
+    
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
-    RC rc = rbfm->openFile(getFileName(tableName), rm_ScanIterator.fileHandle);
+    IndexManager *im = IndexManager::instance();
+    RC rc;
+    // Scan the index catalogue to see if there is a desired index
+    FileHandle fh;
+    rc = rm->openFile(getFileName(INDEXES_TABLE_NAME), fh);
+    if(rc)
+      return rc;
+
+    vector<Attribute> indexDescriptor;
+    rc = getAttributes(INDEXES_TABLE_NAME, indexDescriptor);
+    if(rc)
+      return rc;
+    const string attr = INDEXES_COL_TABLE_ID;
+    int32_t tid;
+    rc = getTableID(tableName, tid);
+    if(rc)
+      return rc;
+    void *val = &tid;
+    vector<Attribute> empty;
+    RBFM_ScanIterator si;
+    rc = rbfm->scan(fh, indexDescriptor, attr, EQ_OP, val, empty, si);
+    if(rc)
+      return rc;
+    RID arid;
+    void *data = malloc(INDEXES_RECORD_DATA_SIZE);
+    const string aName = INDEXES_COL_ATTRIBUTE;
+    while(si.getNextRecord(arid, data) != -1){
+        void *attribute = malloc(INDEXES_COL_ATTRIBUTE_NAME_SIZE);
+        void *indexFilename = malloc(INDEXES_COL_FILE_NAME_SIZE);
+        // Read in the attribute from the tuple
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, attribute);
+        if(rc)
+            return rc;
+        // Read in the index file name
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+        if(rc)
+          return rc;
+        string name;
+        fromAPI(name, attribute);
+        if(name.compare(conditionAttribute) == 0){
+            // Great, we have an index on this attribute for the table
+            // We can do an index scan
+            switch(compOp){
+                // Low and high key are equal, inclusive
+                case EQ_OP:
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, value, true, true, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break;
+                case LT_OP:
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, value, true, false, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break;
+                case LE_OP:
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, value, true, true, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break;
+                case GT_OP:
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, NULL, false, true, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break;
+                case GE_OP:
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, NULL, true, true, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break;
+                case NE_OP:
+                  // For the not equal op, choosing not to implement index scan
+                  // real solution is to use two ix_scaniterators, will get to later
+                  break;
+                case NO_OP;
+                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, NULL, true, false, rm_ScanIterator.ix_ScanIterator);
+                  if(rc)
+                    return rc;
+                  break; 
+            }
+            // Great, we don't need the next scan
+            return SUCCESS;
+        }
+    }
+
+    // Open the file for the given tableName
+
+    rc = rbfm->openFile(getFileName(tableName), rm_ScanIterator.fileHandle);
     if (rc)
         return rc;
 
@@ -967,7 +1220,11 @@ RC RelationManager::scan(const string &tableName,
 // Let rbfm do all the work
 RC RM_ScanIterator::getNextTuple(RID &rid, void *data)
 {
-    return rbfm_iter.getNextRecord(rid, data);
+    if(!ix_ScanIterator){
+        return rbfm_iter.getNextRecord(rid, data);
+    } else{
+
+    }
 }
 
 // Close our file handle, rbfm_scaniterator

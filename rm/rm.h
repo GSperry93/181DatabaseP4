@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <stdlib.h>
 
 #include "../rbf/rbfm.h"
 #include "../ix/ix.h"
@@ -132,6 +133,9 @@ public:
   RC createIndex(const string &tableName, const string &attributeName);
 
   RC destroyIndex(const string &tableName, const string &attributeName);
+
+
+  RC updateIndex(const string &tableName, const RID &rid, const vector<Attribute> &fileDescriptor, bool insert)
 
   // indexScan returns an iterator to allow the caller to go through qualified entries in index
   RC indexScan(const string &tableName,
