@@ -206,6 +206,8 @@ class Filter : public Iterator {
 	const Condition cond;
 	Iterator* iter;
 	void* rhsAttrVal;
+	void* lhsAttrVal;
+	int lhsAttrNum, rhsAttrNum;
 };
 
 

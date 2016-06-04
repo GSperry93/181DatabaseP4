@@ -49,8 +49,40 @@ RC Filter::getNextTuple(void *data)
 //    NO_OP       // no condition
 //} CompOp;
 	void* tempData = malloc(4096);
+	void* value = malloc (4096);
 	bool condTrue;
+	vector<Attribute> attr;
+	getAttributes(attr);
 	
+	for(int i = 0; i < attr.size(); i++)
+	{
+		if (attr[i].name == lhsAttr) {lhsAttrNum = i;}
+		if (bRhsIsAttr)
+		{
+			if(attr[i].name == rhsAttr) {rhsAttrNum = i;}
+		}		
+	}
+
+	lhsAttrVal = malloc(attr[lhsAttrNum].size + 1);
+	if(bRhsIsAttr)
+	{
+		rhsAttrVal = malloc(attr[rhsAttrNum].size + 1);
+	}
+	else 
+	{
+		if(rhsValue.type == TypeInt || rhsValue.type == TypeReal)
+		{
+			rhsAttrVal = malloc(4);
+			memcpy(rhsAttrVal, rhsValue.data, 4);
+		}
+		else
+		{
+			rhsAttrVal = malloc(*(int*)rhsValue.data + 1);
+			memcpy(rhsAttrVal, (void*)((char*)rhsValue.data+4), (*(int*)rhsValue.data));
+			(char*)rhsAttrVal + *(int*)rhsValue.data = '\0';
+		}
+		 
+	}
 
 	do
 	{
@@ -59,17 +91,55 @@ RC Filter::getNextTuple(void *data)
 			return QE_EOF;
 		}	
 		//read lhs value out of tuple
-
-		vector<Attribute> attr;
-		getAttributes(attr);
-		for(int i = 0; i < attr.size(); i++
-		{
-			
-		}
 		//read rhs attr value if applicable
+		for(int i = 0; i < attr.size(); i++)
+		{
+			int size; 
+			int offset = 0;
+			
+			if(attr[i].type == TypeInt || attr[i].type == TypeReal)
+			{
+				size = 4;
+				memcpy(value, (void*)((char*)tempData+offset), size);
+				offset = offset + size;
+			}
+			else
+			{
+				memcpy(value, (void*)((char*)tempData+offset+4), *((int*)tempData+offset);
+				offset = offset + size
+				(char*)value + *((int*)tempData+offset) = '\0';
+				size++;
+			}
+		 
+			if(i == lhsAttrNum)
+			{
+				memcpy(lhsAttrVal, value, size);
+			}
+			if(i == rhsAttrNum)
+			{
+				memcpy(rhsAttrVal, value, size);
+			}
+		}	
+		//else read rhsValue into rhsAttrValue
+		if(attr[lhsAttrNum].type == TypeInt)
+		{
+			condTrue = checkCond(*(int*)lhsAttrval);
+		}
+		else if(attr[lhsAttrNum].type == TypeReal)
+		{
+			condTrue = checkCond(*(float*)lhsAttrVal);
+		}
+		else if(attr[lhsAttrNum].type == TypeVarChar)
+		{
+			condTrue = checkCond((char*)lhsAttrVal);
+		}		
 
 	}
 	while(!condTrue && iter != NULL);
+	
+	free(tempData);
+	free(value);	
+
 	if(condTrue)
 	{
 		data = tempData;
