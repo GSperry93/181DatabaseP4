@@ -135,7 +135,7 @@ public:
   RC destroyIndex(const string &tableName, const string &attributeName);
 
 
-  RC updateIndex(const string &tableName, const RID &rid, const vector<Attribute> &fileDescriptor, bool insert)
+  RC updateIndex(const string &tableName, const RID &rid, const vector<Attribute> &fileDescriptor, bool insert);
 
   // indexScan returns an iterator to allow the caller to go through qualified entries in index
   RC indexScan(const string &tableName,

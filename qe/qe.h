@@ -2,6 +2,8 @@
 #define _qe_h_
 
 #include <vector>
+#include <string.h>
+#include <algorithm>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -203,11 +205,15 @@ class Filter : public Iterator {
         void getAttributes(vector<Attribute> &attrs) const;
 
      private:
-	const Condition cond;
+	Condition cond;
 	Iterator* iter;
 	void* rhsAttrVal;
 	void* lhsAttrVal;
 	int lhsAttrNum, rhsAttrNum;
+
+	bool checkCond(const int intCond);
+	bool checkCond(const float realCond);
+	bool checkCond(const char* varCharCond);
 };
 
 

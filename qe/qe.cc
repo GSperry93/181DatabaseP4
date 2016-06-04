@@ -56,30 +56,30 @@ RC Filter::getNextTuple(void *data)
 	
 	for(int i = 0; i < attr.size(); i++)
 	{
-		if (attr[i].name == lhsAttr) {lhsAttrNum = i;}
-		if (bRhsIsAttr)
+		if (attr[i].name == cond.lhsAttr) {lhsAttrNum = i;}
+		if (cond.bRhsIsAttr)
 		{
-			if(attr[i].name == rhsAttr) {rhsAttrNum = i;}
+			if(attr[i].name == cond.rhsAttr) {rhsAttrNum = i;}
 		}		
 	}
 
-	lhsAttrVal = malloc(attr[lhsAttrNum].size + 1);
-	if(bRhsIsAttr)
+	lhsAttrVal = malloc(attr[lhsAttrNum].length + 1);
+	if(cond.bRhsIsAttr)
 	{
-		rhsAttrVal = malloc(attr[rhsAttrNum].size + 1);
+		rhsAttrVal = malloc(attr[rhsAttrNum].length + 1);
 	}
 	else 
 	{
-		if(rhsValue.type == TypeInt || rhsValue.type == TypeReal)
+		if(cond.rhsValue.type == TypeInt || cond.rhsValue.type == TypeReal)
 		{
 			rhsAttrVal = malloc(4);
-			memcpy(rhsAttrVal, rhsValue.data, 4);
+			memcpy(rhsAttrVal, cond.rhsValue.data, 4);
 		}
 		else
 		{
-			rhsAttrVal = malloc(*(int*)rhsValue.data + 1);
-			memcpy(rhsAttrVal, (void*)((char*)rhsValue.data+4), (*(int*)rhsValue.data));
-			(char*)rhsAttrVal + *(int*)rhsValue.data = '\0';
+			rhsAttrVal = malloc(*(int*)cond.rhsValue.data + 1);
+			memcpy(rhsAttrVal, (void*)((char*)cond.rhsValue.data+4), (*(int*)cond.rhsValue.data));
+			*((char*)rhsAttrVal + *(int*)cond.rhsValue.data) = '\0';
 		}
 		 
 	}
@@ -105,9 +105,9 @@ RC Filter::getNextTuple(void *data)
 			}
 			else
 			{
-				memcpy(value, (void*)((char*)tempData+offset+4), *((int*)tempData+offset);
-				offset = offset + size
-				(char*)value + *((int*)tempData+offset) = '\0';
+				memcpy(value, (void*)((char*)tempData+offset+4), *((int*)tempData+offset));
+				offset = offset + size;
+				*((char*)value + *((int*)tempData+offset)) = '\0';
 				size++;
 			}
 		 
@@ -123,7 +123,7 @@ RC Filter::getNextTuple(void *data)
 		//else read rhsValue into rhsAttrValue
 		if(attr[lhsAttrNum].type == TypeInt)
 		{
-			condTrue = checkCond(*(int*)lhsAttrval);
+			condTrue = checkCond(*(int*)lhsAttrVal);
 		}
 		else if(attr[lhsAttrNum].type == TypeReal)
 		{
@@ -155,82 +155,28 @@ bool Filter::checkCond(const int intCond)
 	switch(cond.op)
 	{
 		case EQ_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond == *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond == cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond == *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case LT_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond < *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond < cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond < *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case LE_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond <= *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond <= cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond <= *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case GT_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond > *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond > cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond > *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case GE_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond >= *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond >= cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond >= *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case NE_OP :
-			if(cond.bRhsIsAttr)
-			{
-				if(intCond != *(int*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(intCond != cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(intCond != *(int*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case NO_OP :
 			return true;
@@ -242,82 +188,28 @@ bool Filter::checkCond(const float realCond)
 	switch(cond.op)
 	{
 		case EQ_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond == *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond == cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond == *(float*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case LT_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond < *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond < cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond < *(float*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case LE_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond <= *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond <= cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond <= *(float*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case GT_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond > *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond > cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond > *(float*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case GE_OP : 
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond >= *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond >= cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond >= *(float*)rhsAttrVal) {return true;}
+			else {return false;}		
 			break;	
 		case NE_OP :
-			if(cond.bRhsIsAttr)
-			{
-				if(realCond != *(float*)rhsAttrVal) {return true;}
-				else {return false;}
-				
-			}
-			else
-			{
-				if(realCond != cond.rhsValue) {return true;}
-				else {return false;}
-			}
+			if(realCond != *(float*)rhsAttrVal) {return true;}
+			else {return false;}
 			break;	
 		case NO_OP :
 			return true;
@@ -331,14 +223,7 @@ bool Filter::checkCond(const float realCond)
 bool Filter::checkCond(const char* charCond)
 {
 	int strcmpRes;
-	if(cond.bRhsIsAttr)
-	{
 		strcmpRes = strcmp(charCond, (char*)rhsAttrVal);
-	}
-	else
-	{
-		strcmpRes = strcmp(charCond, comp.rhsValue);
-	}
 
 	switch(cond.op)
 	{
