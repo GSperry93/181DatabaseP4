@@ -379,8 +379,8 @@ class INLJoin : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
     private:
-	Iterator left;
-	IndexScan right;
+	Iterator* left;
+	IndexScan* right;
 	Condition cond;
 };
 
