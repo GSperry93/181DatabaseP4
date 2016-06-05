@@ -86,6 +86,7 @@ private:
   IX_ScanIterator ix_ScanIterator;
   IXFileHandle ixFileHandle;
   FileHandle fileHandle;
+  string tableName;
   bool ixFlag;
 };
 

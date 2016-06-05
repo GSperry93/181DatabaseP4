@@ -1148,6 +1148,8 @@ RC RelationManager::scan(const string &tableName,
     if(rc)
       return rc;
     RID arid;
+    // Assign the tablename to the scan iterator
+    rm_ScanIterator.tableName = tableName;
     void *data = malloc(INDEXES_RECORD_DATA_SIZE);
     const string aName = INDEXES_COL_ATTRIBUTE;
     while(si.getNextRecord(arid, data) != -1){
@@ -1235,9 +1237,15 @@ RC RM_ScanIterator::getNextTuple(RID &rid, void *data)
 {
     if(!ixFlag){
         return rbfm_iter.getNextRecord(rid, data);
-    } else{
-
     }
+    // Great, we can use an index
+    // We really don't need the key, so just put it in an object and free the object
+    void *dumbKey = malloc(PAGE_SIZE);
+    ix_ScanIterator.getNextEntry(rid, dumbKey);
+    free(dumbKey);
+    RelationManager *rm = RelationManager::instance();
+    return rm->readTuple(tableName, rid, data);
+    
 }
 
 // Close our file handle, rbfm_scaniterator
