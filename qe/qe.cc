@@ -226,8 +226,42 @@ void Filter::getAttributes(vector<Attribute> &attrs) const
 {
 	iter->getAttributes(attrs);
 }
-
-
+INLJoin::parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult){
+    char *cursor = innerData;
+    char *nullIndicator = innerData;
+    int nullSize = rbfm->getNullIndicatorSize(innerAttributes.size());
+    cursor += nullSize;
+    int i = 0;
+    Attribute desired;
+    for(auto a: innerAttributes){
+        if(innerAttributes.name.compare(compAttr) == 0){
+            desired = a;
+            break;
+        }
+        if(rbfm->fieldIsNull(nullIndicator, i)){
+            i++;
+            continue;
+       }
+       if(a.type == TypeVarChar){
+            int32_t length;
+            memcpy(&length, cursor, 4);
+            cursor += 4 + length;
+        }else{
+            cursor += 4;
+        }
+        i++;
+    }
+    if(desired.type == TypeVarChar){
+        memcpy(numResult, cursor, 4);
+        cursor += 4;
+        // +1 for null termination
+        stringResult = (char *)malloc(numResult+1);
+        memcpy(stringResult, cursor, numResult);
+        (char *)(stringResult + numResult) = '\0';
+    }else{
+        memcpy(&numResult, cursor, 4);
+    }
+}
 /*foreach tuple r in R do
  * 	foreach tuple s in S where r(i) == s(i) do
  * 		add <r,s> to result
@@ -237,9 +271,71 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
                const Condition &condition)   // Join condition
         
 {
-	left = leftIn;
-	right = rightIn;
-	cond = condition;	
+        vector<Attribute> outerAttributes;
+        vector<Attribute> innerAttributes;
+        leftIn->getAttributes(outerAttributes);
+        rightIn->getAttributes(innerAttributes);
+        vector<Attribute> combinedAttributes;
+        combinedAttributes = outerAttributes;
+        failFlag = false;
+        sameAttributeName = false;
+        if(!bRhsIsAttr){
+            // You cannot join on a non attribute
+            failFlag = true;
+            return;
+        }
+        if(lhsAttr.compare(rhsAttribute) == 0){
+            sameAttributeName = true; 
+        }
+        Attribute outerAttribute;
+        Attribute innerAttribute;
+        for(auto a: innerAttributes){
+            if(sameAttributeName && a.name.compare(condition.lhsAttr) != 0){
+                combinedAttributes.push_back(a); 
+            }else if(a.name.compare(condition.rhsAttr) == 0){
+                innerAttribute = a;
+                combinedAttributes.push_back(a);
+            }
+            else{
+                combinedAttributes.push_back(a);
+            }
+        }
+        for(auto a: outerAttributes){
+            if(a.name.compare(condition.lhsAttr) == 0){
+                outerAttribute = a;
+                break;
+            }
+        }
+        RelationManager *rm = RelationManager::instance();
+        RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+        RC rc = rm->createTable("joinTable", combinedAttributes);
+        if(rc)
+          failFlag = true;
+        void *data = malloc(PAGE_SIZE);
+        while(leftIn.getNextTuple(data) != -1){
+            char *strData;
+            int32_t numData;
+            parseTuple(data, outerAttributes, condition.lhsAttr, strData, numData);
+            void *innerData = malloc(PAGE_SIZE);
+            while(rightIn.getNextTuple(innerData) != -1){
+                char *innerStrData;
+                int32_t innerNumData;
+                parseTuple(innerData, innerAttributes, condition.rhsAttr, innerStrData, innerNumData);
+                bool addFlag = false;
+                if(innerAttribute.type == TypeVarChar){
+                    if(strcmp(strData, innerStrData == 0)){
+                        addFlag = true;
+                    }
+                } else{
+                    if(numData = innerNumData)
+                      addFlag = true;
+                }
+                free(innerStrData);
+            }
+            free(strData);
+            free(innerData);
+        }
+        free(data);
 }
         
 INLJoin::~INLJoin()

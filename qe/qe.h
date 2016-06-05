@@ -382,6 +382,8 @@ class INLJoin : public Iterator {
 	Iterator left;
 	IndexScan right;
 	Condition cond;
+        bool failFlag;
+        bool sameAttributeName;
 };
 
 
