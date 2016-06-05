@@ -61,7 +61,7 @@ RC RelationManager::destroyIndex(const string &tableName, const string &attribut
         RM_ScanIterator rm_si;
         vector<string> projection;
         void *value = &id;
-        rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        rc = this->scan(INDEXES_TABLE_NAME, INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
         RID rid;
         void *data = malloc(INDEXES_RECORD_DATA_SIZE);
         const string aName = INDEXES_COL_ATTRIBUTE;
@@ -114,7 +114,7 @@ RC RelationManager::indexScan(const string &tableName,
         if(rc)
           return rc;
         void *value = &id;
-        rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+        rc = this->scan(INDEXES_TABLE_NAME, INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
         if(rc)
           return rc;
         RID arid;
@@ -450,7 +450,7 @@ RC RelationManager::updateIndex(const string &tableName, const RID &rid, const v
     if(rc)
       return rc;
     void *value = &id;
-    rc = this->scan(getFileName(INDEXES_TABLE_NAME), INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
+    rc = this->scan(INDEXES_TABLE_NAME, INDEXES_COL_TABLE_ID, EQ_OP, value, projection, rm_si);
     if(rc)
       return rc;
     RID arid;
