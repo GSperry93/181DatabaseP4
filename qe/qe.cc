@@ -63,7 +63,7 @@ RC Filter::getNextTuple(void *data)
 		
 		for(int i = 0; i < attr.size(); i++)
 		{
-			int size; 
+			int size = 0; 
     			int indicatorIndex = i / CHAR_BIT;
     			int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
    			if ((((char*)nulls)[indicatorIndex] & indicatorMask) != 0)
@@ -234,15 +234,16 @@ void Filter::getAttributes(vector<Attribute> &attrs) const
 {
 	iter->getAttributes(attrs);
 }
-INLJoin::parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult){
-    char *cursor = innerData;
-    char *nullIndicator = innerData;
+void INLJoin::parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult){
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    char *cursor = (char *)innerData;
+    char *nullIndicator = (char *)innerData;
     int nullSize = rbfm->getNullIndicatorSize(innerAttributes.size());
     cursor += nullSize;
     int i = 0;
     Attribute desired;
     for(auto a: innerAttributes){
-        if(innerAttributes.name.compare(compAttr) == 0){
+        if(a.name.compare(compAttr) == 0){
             desired = a;
             break;
         }
@@ -260,12 +261,12 @@ INLJoin::parseTuple(void *innerData, vector<Attribute> innerAttributes, string c
         i++;
     }
     if(desired.type == TypeVarChar){
-        memcpy(numResult, cursor, 4);
+        memcpy(&numResult, cursor, 4);
         cursor += 4;
         // +1 for null termination
         stringResult = (char *)malloc(numResult+1);
         memcpy(stringResult, cursor, numResult);
-        (char *)(stringResult + numResult) = '\0';
+        *(char *)(stringResult + numResult) = '\0';
     }else{
         memcpy(&numResult, cursor, 4);
     }
@@ -287,12 +288,12 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
         combinedAttributes = outerAttributes;
         failFlag = false;
         sameAttributeName = false;
-        if(!bRhsIsAttr){
+        if(!condition.bRhsIsAttr){
             // You cannot join on a non attribute
             failFlag = true;
             return;
         }
-        if(lhsAttr.compare(rhsAttribute) == 0){
+        if(condition.lhsAttr.compare(condition.rhsAttr) == 0){
             sameAttributeName = true; 
         }
         Attribute outerAttribute;
@@ -315,27 +316,26 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
             }
         }
         RelationManager *rm = RelationManager::instance();
-        RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
         RC rc = rm->createTable("joinTable", combinedAttributes);
         if(rc)
           failFlag = true;
         void *data = malloc(PAGE_SIZE);
-        while(leftIn.getNextTuple(data) != -1){
-            char *strData;
-            int32_t numData;
+        while(leftIn->getNextTuple(data) != -1){
+            char *strData = NULL;
+            int32_t numData = 0;
             parseTuple(data, outerAttributes, condition.lhsAttr, strData, numData);
             void *innerData = malloc(PAGE_SIZE);
-            while(rightIn.getNextTuple(innerData) != -1){
-                char *innerStrData;
-                int32_t innerNumData;
+            while(rightIn->getNextTuple(innerData) != -1){
+                char *innerStrData = NULL;
+                int32_t innerNumData = 0;
                 parseTuple(innerData, innerAttributes, condition.rhsAttr, innerStrData, innerNumData);
                 bool addFlag = false;
                 if(innerAttribute.type == TypeVarChar){
-                    if(strcmp(strData, innerStrData == 0)){
+                    if(strcmp(strData, innerStrData) == 0){
                         addFlag = true;
                     }
                 } else{
-                    if(numData = innerNumData)
+                    if(numData == innerNumData)
                       addFlag = true;
                 }
                 free(innerStrData);

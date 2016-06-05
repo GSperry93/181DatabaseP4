@@ -4,6 +4,7 @@
 #include <vector>
 #include <string.h>
 #include <algorithm>
+#include <math.h>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -305,6 +306,7 @@ class Project : public Iterator {
             }
             // Finally set null indicator of data, clean up and return
             memcpy((char*)data, nullIndicator, nullIndicatorSize);
+            return SUCCESS;
         };
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const
@@ -363,6 +365,7 @@ class Project : public Iterator {
                     offSet += VARCHAR_LENGTH_SIZE;
                     return offSet;
                 }
+            return 0;
         }
 };
 
@@ -379,6 +382,7 @@ class INLJoin : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
     private:
+        void parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult);
 	Iterator* left;
 	IndexScan* right;
 	Condition cond;

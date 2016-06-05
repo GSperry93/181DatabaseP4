@@ -217,6 +217,8 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
 public:
   friend class RBFM_ScanIterator;
   friend class Project;
+  int getNullIndicatorSize(int fieldCount);
+  bool fieldIsNull(char *nullIndicator, int i);
 
 protected:
   RecordBasedFileManager();
@@ -236,11 +238,10 @@ private:
   SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
   void setSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber, SlotDirectoryRecordEntry recordEntry);
 
-  unsigned getPageFreeSpaceSize(void * page);
-  unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
+    unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
 
-  int getNullIndicatorSize(int fieldCount);
-  bool fieldIsNull(char *nullIndicator, int i);
+  
+  unsigned getPageFreeSpaceSize(void * page);
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, int32_t offset, const vector<Attribute> &recordDescriptor, void *data);
