@@ -378,7 +378,7 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
         	int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
         	dataNullBytes[indicatorIndex] |= indicatorMask;
 		}else{
-			if(oneAttrs.type == TypeVarChar){
+			if(oneAttrs[i].type == TypeVarChar){
 				void * len = malloc(4);
 				memcpy(len, (char*)oneNullBytes+oneOffset, 4);
 				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, (*len)+4);
@@ -403,7 +403,7 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 	        dataNullBytes[indicatorIndex] |= indicatorMask;
 		}else{
 			j++;
-			if(twoAttrs.type == TypeVarChar){
+			if(twoAttrs[i].type == TypeVarChar){
 				void * len = malloc(4);
 				memcpy(len, (char*)twoNullBytes+twoOffset, 4);
 				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*len)+4);
