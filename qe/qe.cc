@@ -228,3 +228,32 @@ void Filter::getAttributes(vector<Attribute> &attrs) const
 }
 
 
+/*foreach tuple r in R do
+ * 	foreach tuple s in S where r(i) == s(i) do
+ * 		add <r,s> to result
+ */
+INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
+               IndexScan *rightIn,          // IndexScan Iterator of input S
+               const Condition &condition)   // Join condition
+        
+{
+	left = leftIn;
+	right = rightIn;
+	cond = condition;	
+}
+        
+INLJoin::~INLJoin()
+{
+
+}
+
+RC INLJoin::getNextTuple(void *data)
+{
+	
+	return QE_EOF;
+}
+// For attribute in vector<Attribute>, name it as rel.attr
+void INLJoin::getAttributes(vector<Attribute> &attrs) const
+{
+
+}
