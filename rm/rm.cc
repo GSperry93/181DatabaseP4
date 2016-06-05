@@ -1243,7 +1243,8 @@ RC RM_ScanIterator::getNextTuple(RID &rid, void *data)
     void *dumbKey = malloc(PAGE_SIZE);
     ix_ScanIterator.getNextEntry(rid, dumbKey);
     free(dumbKey);
-    return readTuple(tableName, rid, data);
+    RelationManager *rm = RelationManager::instance();
+    return rm->readTuple(tableName, rid, data);
     
 }
 
