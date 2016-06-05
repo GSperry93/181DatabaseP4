@@ -340,10 +340,13 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
                 }
                 free(innerStrData);
             }
+            void * tuple = mergeTuples(data, innerData, outerAttributes, innerAttributes, outerAttribute.name, sameAttributeName);
+            //now we need to insert this tuple into the table
             free(strData);
             free(innerData);
         }
         free(data);
+        //now call scanTable!!!!!
 }
         
 INLJoin::~INLJoin()
@@ -351,11 +354,15 @@ INLJoin::~INLJoin()
 
 }
 
-void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name)
+void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name, bool same)
 {
 	RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
 	void * data = malloc(PAGE_SIZE);
 	int dataOffset = rbfm->getNullIndicatorSize(oneAttrs.size()+twoAttrs.size()-1);
+	if(!same){
+		//we aren't merging the attributes, so the size will be the sum
+		dataOffset = rbfm->getNullIndicatorSize(oneAttrs.size()+twoAttrs.size());
+	}
 	int nullSize = dataOffset;
 
 	int oneOffset = rbfm->getNullIndicatorSize(oneAttrs.size());
@@ -393,7 +400,7 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 	}
 	int j = oneAttrs.size();
 	for(int i = 0; i<twoAttrs.size(); i++){
-		if(twoAttrs[i].name.compare(name) ==  0){
+		if(same && twoAttrs[i].name.compare(name) ==  0){
 			//this attribute already in result :)
 			continue;
 		}
