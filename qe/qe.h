@@ -379,6 +379,9 @@ class INLJoin : public Iterator {
         ~INLJoin();
 
         RC getNextTuple(void *data);
+        // Soo we're creating a temp table for the joins
+        // Might as well keep the RIDs in memory!
+        vector<RID> rids;
 
         void * mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name, bool same);
         // For attribute in vector<Attribute>, name it as rel.attr

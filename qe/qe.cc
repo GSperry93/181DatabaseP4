@@ -340,8 +340,13 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
                 }
                 free(innerStrData);
             }
-            void * tuple = mergeTuples(data, innerData, outerAttributes, innerAttributes, outerAttribute.name, sameAttributeName);
-            //now we need to insert this tuple into the table
+            if(addFlag){
+                RID rid;
+                void * tuple = mergeTuples(data, innerData, outerAttributes, innerAttributes, outerAttribute.name, sameAttributeName);
+                rm->insertTuple("joinTable", data, rid);
+                rids.push_back(rid);
+            }
+                //now we need to insert this tuple into the table
             free(strData);
             free(innerData);
         }
@@ -448,8 +453,16 @@ vector<Attribute> INLJoin::mergeAttributes(vector<Attribute> one, vector<Attribu
 
 RC INLJoin::getNextTuple(void *data)
 {
-	
-	return QE_EOF;
+        if(rids.size() == 0){
+            deleteTable("joinTable");
+            return QE_EOF;
+        }
+	RID rid = rids.back();
+        RC rc = readTuple("joinTable", rid, data);
+        if(rc)
+          return rc;
+        rids.pop_back();
+	return 0;
 }
 // For attribute in vector<Attribute>, name it as rel.attr
 void INLJoin::getAttributes(vector<Attribute> &attrs) const
