@@ -1,29 +1,31 @@
 1. Basic information
-Team number (e.g., 01) : 
-#1 Student ID : 
-#1 Student Name : 
-#2 Student ID : 
-#2 Student Name : 
-#3 Student ID : 
-#3 Student Name : 
+Team number (e.g., 01) : 05
+#1 Student ID : 1356910
+#1 Student Name : Christopher Ketchum
+#2 Student ID : 1406976
+#2 Student Name : Ankur Goswami
+#3 Student ID : 1438051
+#3 Student Name : Gage Perry
 
 
 2. Catalog information about Index
 - Show what catalog information you store for an index. 
-
+For an index, the catalogue stores the table-id (foreign key) of the table the index is on, the attribute the index keys on, and finally the filename of the index file.
 
 3. Index Nested Loop Join
 - Describe how your Index Nested Loop Join works.
+When we initialize our INLJoin object we iterate over the given iterators and merge the tuples that meet the join condition. These tuples are then stored in a temporary table called "joinTable" through calls to insert tuple, which conveniently returns RIDs. We store these RIDs in a vector in memory, which we then iterate over when we get calls to getNextTuple. When we have finished iterating, we delete the temporary table that we generated. This makes calls to getNextTuple O(1) by avoiding the need for an iterator after object initialization.
 
 
 4. Implementation Detail
 - Have you added your own source file (.cc or .h)?
-
+No.
 - Have you implemented any optional features? Then, describe them here.
-
+No.
 - Other implementation details:
-
+We use an index wherever possible in the RelationManager to increase efficiency.
 
 5. Other (optional)
 - Freely use this section to tell us about things that are related to the project 4, but not related to the other sections (optional)
 
+Thank you for this great class it was very enjoyable and helped expand our C skills!
