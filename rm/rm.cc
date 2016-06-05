@@ -1114,9 +1114,10 @@ RC RelationManager::scan(const string &tableName,
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     IndexManager *im = IndexManager::instance();
     RC rc;
+    rm_ScanIterator.ixFlag = false;
     // Scan the index catalogue to see if there is a desired index
     FileHandle fh;
-    rc = rm->openFile(getFileName(INDEXES_TABLE_NAME), fh);
+    rc = rbfm->openFile(getFileName(INDEXES_TABLE_NAME), fh);
     if(rc)
       return rc;
 
@@ -1124,13 +1125,24 @@ RC RelationManager::scan(const string &tableName,
     rc = getAttributes(INDEXES_TABLE_NAME, indexDescriptor);
     if(rc)
       return rc;
+    vector<Attribute> aDescriptor;
+    rc = getAttributes(tableName, aDescriptor);
+    if(rc)
+      return rc;
+    Attribute chosen;
+    for(auto const& a: aDescriptor) {
+        if(conditionAttribute.compare(a.name) == 0){
+            chosen = a;
+            break;
+        }
+    }
     const string attr = INDEXES_COL_TABLE_ID;
     int32_t tid;
     rc = getTableID(tableName, tid);
     if(rc)
       return rc;
     void *val = &tid;
-    vector<Attribute> empty;
+    vector<string> empty;
     RBFM_ScanIterator si;
     rc = rbfm->scan(fh, indexDescriptor, attr, EQ_OP, val, empty, si);
     if(rc)
@@ -1146,7 +1158,7 @@ RC RelationManager::scan(const string &tableName,
         if(rc)
             return rc;
         // Read in the index file name
-        rc = readAttribute(INDEXES_TABLE_NAME, arid, fileName, indexFilename);
+        rc = readAttribute(INDEXES_TABLE_NAME, arid, aName, indexFilename);
         if(rc)
           return rc;
         string name;
@@ -1154,30 +1166,31 @@ RC RelationManager::scan(const string &tableName,
         if(name.compare(conditionAttribute) == 0){
             // Great, we have an index on this attribute for the table
             // We can do an index scan
+            rm_ScanIterator.ixFlag = true;
             switch(compOp){
                 // Low and high key are equal, inclusive
                 case EQ_OP:
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, value, true, true, rm_ScanIterator.ix_ScanIterator);
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, value, value, true, true, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break;
                 case LT_OP:
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, value, true, false, rm_ScanIterator.ix_ScanIterator);
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, NULL, value, true, false, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break;
                 case LE_OP:
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, value, true, true, rm_ScanIterator.ix_ScanIterator);
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, NULL, value, true, true, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break;
                 case GT_OP:
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, NULL, false, true, rm_ScanIterator.ix_ScanIterator);
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, value, NULL, false, true, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break;
                 case GE_OP:
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, value, NULL, true, true, rm_ScanIterator.ix_ScanIterator);
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, value, NULL, true, true, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break;
@@ -1185,8 +1198,8 @@ RC RelationManager::scan(const string &tableName,
                   // For the not equal op, choosing not to implement index scan
                   // real solution is to use two ix_scaniterators, will get to later
                   break;
-                case NO_OP;
-                  rc = im->scan(rm_ScanIterator.fileHandle, conditionAttribute, NULL, NULL, true, false, rm_ScanIterator.ix_ScanIterator);
+                case NO_OP:
+                  rc = im->scan(rm_ScanIterator.ixFileHandle, chosen, NULL, NULL, true, false, rm_ScanIterator.ix_ScanIterator);
                   if(rc)
                     return rc;
                   break; 
@@ -1220,7 +1233,7 @@ RC RelationManager::scan(const string &tableName,
 // Let rbfm do all the work
 RC RM_ScanIterator::getNextTuple(RID &rid, void *data)
 {
-    if(!ix_ScanIterator){
+    if(!ixFlag){
         return rbfm_iter.getNextRecord(rid, data);
     } else{
 

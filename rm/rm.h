@@ -83,7 +83,10 @@ public:
   friend class RelationManager;
 private:
   RBFM_ScanIterator rbfm_iter;
+  IX_ScanIterator ix_ScanIterator;
+  IXFileHandle ixFileHandle;
   FileHandle fileHandle;
+  bool ixFlag;
 };
 
 // RM_IndexScanIterator is an iterator to go through index entries
