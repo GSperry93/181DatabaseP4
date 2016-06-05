@@ -351,6 +351,94 @@ INLJoin::~INLJoin()
 
 }
 
+void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name)
+{
+	RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+	void * data = malloc(PAGE_SIZE);
+	int dataOffset = rbfm->getNullIndicatorSize(oneAttrs.size()+twoAttrs.size()-1);
+	int nullSize = dataOffset;
+
+	int oneOffset = rbfm->getNullIndicatorSize(oneAttrs.size());
+	int twoOffset = rbfm->getNullIndicatorSize(twoAttrs.size());
+
+	void * oneNullBytes = malloc(oneOffset);
+	memset(oneNullBytes, 0, oneOffset);
+	memcpy(oneNullBytes, tupleOne, oneOffset);
+
+	void * twoNullBytes = malloc(twoOffset);
+	memset(twoNullBytes, 0, twoOffset);
+	memcpy(twoNullBytes, tupleTwo, twoOffset);
+
+	void * dataNullBytes = malloc(dataOffset);
+	memset(dataNullBytes, 0, dataOffset);
+
+	for(int i = 0; i<oneAttrs.size(); i++){
+		if(rbfm->fieldIsNull(oneNullBytes, i )){
+	        int indicatorIndex = (i+1) / CHAR_BIT;
+        	int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+        	dataNullBytes[indicatorIndex] |= indicatorMask;
+		}else{
+			if(oneAttrs.type == TypeVarChar){
+				void * len = malloc(4);
+				memcpy(len, (char*)oneNullBytes+oneOffset, 4);
+				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, (*len)+4);
+				dataOffset+=(*len)+4;
+				oneOffset+=(*len)+4;
+			}else{
+				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, 4);
+				dataOffset += 4;
+				oneOffset += 4;
+			}
+		}
+	}
+	int j = oneAttrs.size();
+	for(int i = 0; i<twoAttrs.size(); i++){
+		if(twoAttrs[i].name.compare(name) ==  0){
+			//this attribute already in result :)
+			continue;
+		}
+		if(rbfm->fieldIsNull(twoNullBytes, i )){
+	        int indicatorIndex = (j+1) / CHAR_BIT;
+	        int indicatorMask  = 1 << (CHAR_BIT - 1 - (j % CHAR_BIT));
+	        dataNullBytes[indicatorIndex] |= indicatorMask;
+		}else{
+			j++;
+			if(twoAttrs.type == TypeVarChar){
+				void * len = malloc(4);
+				memcpy(len, (char*)twoNullBytes+twoOffset, 4);
+				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*len)+4);
+				dataOffset+=(*len)+4;
+				twoOffset+=(*len)+4;
+			}else{
+				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, 4);
+				dataOffset += 4;
+				twoOffset += 4;
+			}
+		}
+	}
+	memcpy(data, dataNullBytes, nullSize);
+	return data;
+}
+
+RC INLJoin::mergeAttributes(vector<Attribute> one, vector<Attribute> two, string name, int &index)
+{
+	vector<Attribute> three;
+	// one of the attrs is in both & we don't want to duplicate it
+	three.reserve(one.size()+two.size()-1)
+	for(int i = 0 ; i < one.size(); i++{
+		three[i] = one[i]
+	}
+	int j = one.size();
+	for(int i = 0 ; i < two.size(); i++{
+		if(two[i].name.compare(name) ==  0){
+			three[j] = two[i]
+			j++
+			index = i;
+		}
+	}
+	return three;
+}
+
 RC INLJoin::getNextTuple(void *data)
 {
 	
