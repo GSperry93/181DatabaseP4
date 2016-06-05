@@ -400,8 +400,10 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 	}
 	int j = oneAttrs.size();
 	for(int i = 0; i<twoAttrs.size(); i++){
+		bool add = true;
 		if(same && twoAttrs[i].name.compare(name) ==  0){
 			//this attribute already in result :)
+			add = false;
 			continue;
 		}
 		if(rbfm->fieldIsNull((char*)twoNullBytes, i )){
@@ -413,11 +415,15 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 			if(twoAttrs[i].type == TypeVarChar){
 				void * len = malloc(4);
 				memcpy(len, (char*)twoNullBytes+twoOffset, 4);
-				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*(int*)len)+4);
+				if(!add){
+					memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*(int*)len)+4);
+				}
 				dataOffset+=(*(int*)len)+4;
 				twoOffset+=(*(int*)len)+4;
 			}else{
-				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, 4);
+				if(!add){
+					memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, 4);
+				}
 				dataOffset += 4;
 				twoOffset += 4;
 			}
