@@ -383,6 +383,7 @@ class INLJoin : public Iterator {
         void * mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name);
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
+        vector<Attribute> mergeAttributes(vector<Attribute> one, vector<Attribute> two, string name, int &index);
     private:
         void parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult);
 	Iterator* left;

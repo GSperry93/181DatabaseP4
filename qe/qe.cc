@@ -373,17 +373,17 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 	memset(dataNullBytes, 0, dataOffset);
 
 	for(int i = 0; i<oneAttrs.size(); i++){
-		if(rbfm->fieldIsNull(oneNullBytes, i )){
+		if(rbfm->fieldIsNull((char*)oneNullBytes, i )){
 	        int indicatorIndex = (i+1) / CHAR_BIT;
         	int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
-        	dataNullBytes[indicatorIndex] |= indicatorMask;
+        	((char*)dataNullBytes)[indicatorIndex] |= indicatorMask;
 		}else{
 			if(oneAttrs[i].type == TypeVarChar){
 				void * len = malloc(4);
 				memcpy(len, (char*)oneNullBytes+oneOffset, 4);
-				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, (*len)+4);
-				dataOffset+=(*len)+4;
-				oneOffset+=(*len)+4;
+				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, (*(int*)len)+4);
+				dataOffset+=(*(int*)len)+4;
+				oneOffset+=(*(int*)len)+4;
 			}else{
 				memcpy((char*)data+dataOffset, (char*)oneNullBytes+oneOffset, 4);
 				dataOffset += 4;
@@ -397,18 +397,18 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 			//this attribute already in result :)
 			continue;
 		}
-		if(rbfm->fieldIsNull(twoNullBytes, i )){
+		if(rbfm->fieldIsNull((char*)twoNullBytes, i )){
 	        int indicatorIndex = (j+1) / CHAR_BIT;
 	        int indicatorMask  = 1 << (CHAR_BIT - 1 - (j % CHAR_BIT));
-	        dataNullBytes[indicatorIndex] |= indicatorMask;
+	        ((char*)dataNullBytes)[indicatorIndex] |= indicatorMask;
 		}else{
 			j++;
 			if(twoAttrs[i].type == TypeVarChar){
 				void * len = malloc(4);
 				memcpy(len, (char*)twoNullBytes+twoOffset, 4);
-				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*len)+4);
-				dataOffset+=(*len)+4;
-				twoOffset+=(*len)+4;
+				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, (*(int*)len)+4);
+				dataOffset+=(*(int*)len)+4;
+				twoOffset+=(*(int*)len)+4;
 			}else{
 				memcpy((char*)data+dataOffset, (char*)twoNullBytes+twoOffset, 4);
 				dataOffset += 4;
@@ -420,19 +420,19 @@ void * INLJoin::mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> 
 	return data;
 }
 
-RC INLJoin::mergeAttributes(vector<Attribute> one, vector<Attribute> two, string name, int &index)
+vector<Attribute> INLJoin::mergeAttributes(vector<Attribute> one, vector<Attribute> two, string name, int &index)
 {
 	vector<Attribute> three;
 	// one of the attrs is in both & we don't want to duplicate it
-	three.reserve(one.size()+two.size()-1)
-	for(int i = 0 ; i < one.size(); i++{
-		three[i] = one[i]
+	three.reserve(one.size()+two.size()-1);
+	for(int i = 0 ; i < one.size(); i++){
+		three[i] = one[i];
 	}
 	int j = one.size();
-	for(int i = 0 ; i < two.size(); i++{
+	for(int i = 0 ; i < two.size(); i++){
 		if(two[i].name.compare(name) ==  0){
-			three[j] = two[i]
-			j++
+			three[j] = two[i];
+			j++;
 			index = i;
 		}
 	}
