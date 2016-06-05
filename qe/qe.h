@@ -376,6 +376,8 @@ class INLJoin : public Iterator {
         ~INLJoin();
 
         RC getNextTuple(void *data);
+
+        void * mergeTuples(void * tupleOne, void * tupleTwo, vector<Attribute> oneAttrs, vector<Attribute> twoAttrs, string name);
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
     private:
