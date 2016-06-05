@@ -55,32 +55,41 @@ RC Filter::getNextTuple(void *data)
 		}	
 		//read lhs value out of tuple
 		//read rhs attr value if applicable
+		int nullbytes = ceil((float)attr.size()/8.0);
+		void* nulls = malloc(nullbytes);
+		memcpy(nulls, tempData, nullbytes);
+		
+		int offset = nullbytes;
+		
 		for(int i = 0; i < attr.size(); i++)
 		{
 			int size; 
-			int offset = 0;
+    			int indicatorIndex = i / CHAR_BIT;
+    			int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+   			if ((((char*)nulls)[indicatorIndex] & indicatorMask) != 0);
 			
-			if(attr[i].type == TypeInt || attr[i].type == TypeReal)
-			{
-				size = 4;
-				memcpy(value, (void*)((char*)tempData+offset), size);
-				offset = offset + size;
-			}
-			else
-			{
-				memcpy(value, (void*)((char*)tempData+offset+4), *((int*)tempData+offset));
-				offset = offset + size;
-				*((char*)value + *((int*)tempData+offset)) = '\0';
-				size++;
-			}
-		 
-			if(i == lhsAttrNum)
-			{
-				memcpy(lhsAttrVal, value, size);
-			}
-			if(i == rhsAttrNum)
-			{
-				memcpy(rhsAttrVal, value, size);
+				if(attr[i].type == TypeInt || attr[i].type == TypeReal)
+				{
+					size = 4;
+					memcpy(value, (void*)((char*)tempData+offset), size);
+					offset = offset + size;
+				}
+				else
+				{
+					memcpy(value, (void*)((char*)tempData+offset+4), *((int*)tempData+offset));
+					offset = offset + size;
+					*((char*)value + *((int*)tempData+offset)) = '\0';
+					size++;
+				}
+			 
+				if(i == lhsAttrNum)
+				{
+					memcpy(lhsAttrVal, value, size);
+				}
+				if(i == rhsAttrNum)
+				{
+					memcpy(rhsAttrVal, value, size);
+				}
 			}
 		}	
 		//else read rhsValue into rhsAttrValue
