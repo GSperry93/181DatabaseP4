@@ -309,6 +309,7 @@ INLJoin::INLJoin(Iterator *leftIn,           // Iterator of input R
                 combinedAttributes.push_back(a);
             }
         }
+        this->combinedAttribute = combinedAttributes;
         for(auto a: outerAttributes){
             if(a.name.compare(condition.lhsAttr) == 0){
                 outerAttribute = a;
@@ -460,5 +461,5 @@ RC INLJoin::getNextTuple(void *data)
 // For attribute in vector<Attribute>, name it as rel.attr
 void INLJoin::getAttributes(vector<Attribute> &attrs) const
 {
-
+	attrs = this->combinedAttribute;
 }

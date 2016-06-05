@@ -384,6 +384,7 @@ class INLJoin : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
         vector<Attribute> mergeAttributes(vector<Attribute> one, vector<Attribute> two, string name, int &index);
+        vector<Attribute> combinedAttribute;
     private:
         void parseTuple(void *innerData, vector<Attribute> innerAttributes, string compAttr, char *stringResult, int32_t &numResult);
 	Iterator* left;
