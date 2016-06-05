@@ -66,8 +66,8 @@ RC Filter::getNextTuple(void *data)
 			int size; 
     			int indicatorIndex = i / CHAR_BIT;
     			int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
-   			if ((((char*)nulls)[indicatorIndex] & indicatorMask) != 0);
-			
+   			if ((((char*)nulls)[indicatorIndex] & indicatorMask) != 0)
+			{
 				if(attr[i].type == TypeInt || attr[i].type == TypeReal)
 				{
 					size = 4;
@@ -106,8 +106,7 @@ RC Filter::getNextTuple(void *data)
 			condTrue = checkCond((char*)lhsAttrVal);
 		}		
 
-	}
-	while(!condTrue && iter != NULL);
+	}while(!condTrue && iter != NULL);
 	
 	free(tempData);
 	free(value);	
